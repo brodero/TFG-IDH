@@ -1,0 +1,290 @@
+---
+title: "TFG MODELOS GAM"
+format: html
+editor: visual
+---
+
+## Librerias
+
+```{r}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)#usar filter
+library(sf)
+library(spdep)
+library(jsonlite)
+library(leaflet)
+
+```
+
+## BASES DE DATOS Y ORDENAR
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+IDHAFRICA<-read_xlsx("IDHAFRICA.xlsx")
+IDHAFRICAFALTANTES<-read_xlsx("AFRICAF.xlsx")#paises q me faltaron y no se porque cuando lo junto se me lia todo asi que aun no lo junto
+IDHAFRICAFALTANTES <- IDHAFRICAFALTANTES %>% 
+  select(-3, -4, -5,-6,-10)
+# Verifica el resultado
+print(IDHAFRICAFALTANTES)
+print(IDHAFRICA)
+IDHAFRICA <- IDHAFRICA %>% 
+  select(-3, -4, -5,-6,-10) #borro columnas
+IDHAFRICA <- IDHAFRICA %>%
+  arrange(IDHAFRICA[[1]]) #ordeno alf abeticamente
+
+
+```
+
+```{r}
+IDHEUROPA<-read_xlsx("IDHEUROPA.xlsx")
+IDHEUROPA <- IDHEUROPA %>%
+  select(-3, -4, -5,-6,-10)
+IDHEUROPA<- IDHEUROPA%>%
+  arrange(IDHEUROPA[[1]])
+
+```
+
+Ahora las variables caracteristicas
+
+```{r}
+CARACTEUROPA <- read_xlsx("CARACTEUROPA.xlsx")
+CARACTAFRICA <- read_xlsx("CARACTAFRICA.xlsx")
+CARACTEUROPA<-  CARACTEUROPA %>%
+  select(-3, -4, -5,-6,-10)
+CARACTEUROPA <- CARACTEUROPA%>%
+  arrange(CARACTEUROPA[[1]])
+CARACTAFRICA <- CARACTAFRICA %>%
+  select(-3, -4, -5,-6,-10)
+CARACTAFRICA <- CARACTAFRICA%>%
+  arrange(CARACTAFRICA[[1]])
+```
+
+```{r}
+IDHAFRICA1<- IDHAFRICA %>%
+  pivot_wider(
+    names_from = indicator,   # Los valores de la columna 'indicator' serán las nuevas columnas
+    values_from = value       # Los valores de la columna 'value' serán los que se asignen a las nuevas columnas
+  )
+
+# Ver el resultado
+head(IDHAFRICA1)
+#sigo sin juntarlo porque ocurren problemas
+IDHAFRICAFALTANTES1<- IDHAFRICAFALTANTES%>%
+  pivot_wider(
+    names_from = indicator,   # Los valores de la columna 'indicator' serán las nuevas columnas
+    values_from = value       # Los valores de la columna 'value' serán los que se asignen a las nuevas columnas
+  )
+
+# Ver el resultado
+head(IDHAFRICAFALTANTES1)
+# Guardar el resultado en un nuevo archivo
+write.csv(IDHAFRICAFALTANTES1, "IDHAFRICAFALTANTES_pivoted.csv", row.names = FALSE)
+
+```
+
+```{r}
+IDHEUROPA1<- IDHEUROPA %>%
+  pivot_wider(
+    names_from = indicator,   # Los valores de la columna 'indicator' serán las nuevas columnas
+    values_from = value       # Los valores de la columna 'value' serán los que se asignen a las nuevas columnas
+  )
+
+# Ver el resultado
+head(IDHEUROPA1)
+
+# Guardar el resultado en un nuevo archivo
+write.csv(IDHEUROPA1, "IDHEUROPE_pivoted.csv", row.names = FALSE)
+```
+
+```{r}
+CARACTEUROPA1<- CARACTEUROPA %>%
+  pivot_wider(
+    names_from = indicator,   # Los valores de la columna 'indicator' serán las nuevas columnas
+    values_from = value       # Los valores de la columna 'value' serán los que se asignen a las nuevas columnas
+  )
+
+# Ver el resultado
+head(CARACTEUROPA1)
+
+# Guardar el resultado en un nuevo archivo
+write.csv(CARACTEUROPA1, "CARACTEUROPA_pivoted.csv", row.names = FALSE)
+
+```
+
+```{r}
+CARACTAFRICA1<- CARACTAFRICA %>%
+  pivot_wider(
+    names_from = indicator,   # Los valores de la columna 'indicator' serán las nuevas columnas
+    values_from = value       # Los valores de la columna 'value' serán los que se asignen a las nuevas columnas
+  )
+
+# Ver el resultado
+head(CARACTAFRICA1)
+
+# Guardar el resultado en un nuevo archivo
+write.csv(CARACTAFRICA1, "CARACTAFRICA_pivoted.csv", row.names = FALSE)
+```
+
+```{r}
+#Uo todo y compruebo que tengo el mismo num de paises en las caracteristicas y en el idh
+IDH <- rbind(IDHAFRICA1, IDHEUROPA1,IDHAFRICAFALTANTES1)
+CARACT <- rbind(CARACTEUROPA1, CARACTAFRICA1)
+IDH <- IDH %>%
+  arrange(IDH[[1]]) 
+CARACT <- CARACT %>%
+  arrange(CARACT[[1]]) 
+unique_isocodes <- n_distinct(IDH$countryIsoCode)
+unique_isocodes #hay103 paises
+unique_isocodes1<- n_distinct(CARACT$countryIsoCode)
+unique_isocodes1#hay103 paises con lo cual concuerdaa
+```
+
+## Matriz distancia
+
+```{r}
+
+paises <- st_read("mapabueno1.geojson")
+
+# Ver la estructura de los datos
+print(paises)#hay256
+
+```
+
+```{r}
+#orremos monaco y andorra que tiene demasiado datos faltantes 
+# Eliminar los países con códigos 'AND' y 'MCO' de IDH
+IDH_filtrado <- IDH[!IDH$countryIsoCode %in% c("AND", "MCO"), ]
+
+# Verifica el resultado
+head(IDH_filtrado)
+
+```
+
+```{r}
+ISOCODE <- unique(IDH_filtrado$countryIsoCode)
+# Imprimir la lista de códigos de país combinados
+print(ISOCODE)#hay103
+isocodes_no_en_paises <- setdiff(ISOCODE, paises$iso3)
+paises_filtrados <- paises[paises$iso3 %in% IDH$countryIsoCode, ]
+
+# borro de tu base de datos paises que no necesito 
+head(paises_filtrados)
+
+```
+
+```{r}
+#lo dibujo a ver que tal 
+leaflet(paises_filtrados) %>%
+  addTiles() %>%  # Agrega un fondo de mapa predeterminado
+  addPolygons(fillColor = "blue", fillOpacity = 0.5, color = "black", weight = 1)
+```
+
+```{r}
+vecinos <- poly2nb(paises_filtrados)
+```
+
+```{r}
+#megustaria que cada nombre fila y columna tuviese nombre ISO
+matriz_pesos <- nb2mat(vecinos, style = "B", zero.policy = TRUE)
+cont.listw <- spdep::nb2listw(vecinos, style="B", zero.policy = TRUE)	#para la matriz de distacia que hacemos   B o W
+```
+
+```{r}
+#Matriz de distancia estandarizada por filas
+normalizar_filas <- function(fila) {
+  suma_fila <- sum(fila)
+  if (suma_fila != 0) {
+    return(fila / suma_fila)
+  } else {
+    return(fila)  # Si la suma es 0, no cambiamos nada (puedes poner otra cosa si lo prefieres)
+  }
+}
+
+# Aplicar la normalización fila por fila
+matriz_normalizada <- t(apply(matriz_pesos, 1, normalizar_filas))
+
+# Ver el resultado y a primera visto veo que okey
+head(matriz_normalizada)
+```
+
+```{r}
+#AQUI VIENE LA PESADILLA PARA CONSEGUIR EL IDH ESPACIAL TENGO QUE FILTRAR POR AÑO Y ENCIMA LUEGO MULTIPLICAR SOLO POR LA COLUMNA 6, ASI QUE PRIMERO HAGO MINI ARRAYS POR AÑOS  PARA FACILITARME LA VIDA Y CREO QUE HASTA AQUI OKEY
+# Inicializar una lista para almacenar los arrays
+listas_años <- list()
+
+# Filtrar los datos por año, creando un array para cada año de 2000 a 2022
+for (a in 2000:2022) {
+  # Filtrar por el año específico
+  listas_años[[as.character(a)]] <- IDH[IDH$year == a, ]
+}
+
+#CREO LA NUEVA VARIABLE PERO LOS DATOS NO ME CUADRAN HELP!!!!
+IDH_espacial <- list()
+
+for (a in 2000:2022) {
+  # Filtrar por el año específico
+  IDH_espacial[as.character(a)] <-  matriz_normalizada * listas_años[[as.character(a)]][,6] 
+}
+
+
+```
+
+## Analisis exploratorio
+
+```{r}
+
+ggplot(IDHAFRICA1, aes(x = year, y = `Human Development Index (value)`, group = countryIsoCode, color = country)) +
+  geom_line() +  # Esto crea las líneas
+  theme_minimal() +  # Usa un tema limpio para el gráfico
+  labs(
+    title = "Índice de Desarrollo Humano (HDI) a lo largo del tiempo",
+    x = "Año",
+    y = "Índice de Desarrollo Humano (HDI)",
+    color = "País"
+  ) +
+  theme(legend.position = "none")  # Si no quieres la leyenda
+```
+
+```{r}
+ggplot(IDHEUROPA1, aes(x = year, y = `Human Development Index (value)`, group = countryIsoCode, color = country)) +
+  geom_line() +  # Esto crea las líneas
+  theme_minimal() +  # Usa un tema limpio para el gráfico
+  labs(
+    title = "Índice de Desarrollo Humano (HDI) a lo largo del tiempo",
+    x = "Año",
+    y = "Índice de Desarrollo Humano (HDI)",
+    color = "País"
+  ) +
+  theme(legend.position = "none")  # Si no quieres la leyenda
+```
+
+```{r}
+combined_data <- bind_rows(IDHEUROPA1, IDHAFRICA1)
+ggplot(combined_data, aes(x = year, y = `Human Development Index (value)`, group = countryIsoCode, color = country)) +
+  geom_line() +  # Esto crea las líneas
+  theme_minimal() +  # Usa un tema limpio para el gráfico
+  labs(
+    title = "Índice de Desarrollo Humano (HDI) ",
+    x = "Año",
+    y = "Índice de Desarrollo Humano (HDI)",
+    color = "País"
+  ) +
+  theme(legend.position = "none")  # Si no quieres la leyenda
+```
+
+```{r}
+ggplot(IDH, aes(x = year, y = `Human Development Index (value)`, group = countryIsoCode, color = country)) +
+  geom_line() +  # Esto crea las líneas
+  theme_minimal() +  # Usa un tema limpio para el gráfico
+  labs(
+    title = "Índice de Desarrollo Humano (HDI) a lo largo del tiempo",
+    x = "Año",
+    y = "Índice de Desarrollo Humano (HDI)",
+    color = "País"
+  ) +
+  theme(legend.position = "none")  # Si no quieres la leyenda
+```
