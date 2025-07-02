@@ -1,1 +1,5 @@
-AQUI TENEIS LOS DOCUMENTOS DEL TFG NECESARIOS.NO DESCARGAR LO QU EPONE PIVOTED QUE SON ARCHIVOS QUE SE CREAN EN R AL IR BORRANDO Y ORDENANDO LAS VARIABLES.
+# TFG del grado de matemáticas
+Modelos Aditivos Generalizados para el Estudio del Índice de Desarrollo Humano
+## Belen Rodero
+
+Acá están los datos y los cuadernos de análisis en código R.
